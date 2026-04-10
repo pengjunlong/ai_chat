@@ -167,8 +167,9 @@ jobs:
         run: |
           mkdir -p artifacts
           TAG="${{ steps.version.outputs.tag }}"
+          APP_NAME="${{ steps.app_name.outputs.app_name }}"
           for f in app/build/outputs/apk/release/*.apk; do
-            [ -f "$f" ] && cp "$f" "artifacts/${TAG#v}-${TAG}.apk"
+            [ -f "$f" ] && cp "$f" "artifacts/${APP_NAME}-${TAG}.apk"
           done
           echo "📂 Artifacts:"
           ls -lh artifacts/
