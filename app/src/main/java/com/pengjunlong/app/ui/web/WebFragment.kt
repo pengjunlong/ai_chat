@@ -24,10 +24,12 @@ import com.pengjunlong.app.ui.web.WebFragment.Companion.newInstance
  * WebFragment：单个 AI Chat 网页的容器
  *
  * 功能：
- * 1. 使用 PC User-Agent 加载网站，绕过移动端跳转限制
- * 2. 顶部进度条显示加载进度
- * 3. 网络错误时显示重试界面
- * 4. 右下角 FAB 一键清除缓存（Cookie + LocalStorage + Cache），重置 Session
+ * 1. 按站点配置选择 PC / 移动端 User-Agent（支持完全自定义 UA）
+ * 2. 按站点配置注入额外请求头（如 Referer、Origin）
+ * 3. 页面加载完成后注入站点专属 JS（修复 viewport / 渲染问题）
+ * 4. 顶部进度条显示加载进度
+ * 5. 网络错误时显示重试界面
+ * 6. 右下角 FAB 一键清除缓存（Cookie + LocalStorage + Cache），重置 Session
  *
  * @param siteId 对应 [AiSiteList] 中 [AiSite.id]，通过 [newInstance] 创建
  */
@@ -36,15 +38,6 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
     companion object {
         private const val ARG_SITE_ID = "site_id"
 
-        /**
-         * PC 模式 User-Agent（Chrome 最新版 Windows）
-         * 用于绕过各 AI 工具的移动端限制/跳转
-         */
-        private const val PC_USER_AGENT =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/124.0.0.0 Safari/537.36"
-
         fun newInstance(siteId: Int) = WebFragment().apply {
             arguments = Bundle().apply { putInt(ARG_SITE_ID, siteId) }
         }
@@ -52,7 +45,7 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
 
     private lateinit var site: AiSite
 
-    // 是否发生了加载错误（用于区分正常加载完成和错误页）
+    /** 是否发生了加载错误（用于区分正常完成和错误页） */
     private var hasLoadError = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,40 +72,48 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
     private fun setupWebView() {
         binding.webView.apply {
             settings.apply {
-                // 启用 JavaScript（AI 聊天网站必须）
+                // JavaScript（AI 聊天网站必须开启）
                 javaScriptEnabled = true
 
-                // PC 模式 User-Agent，绕过移动端检测
-                userAgentString = PC_USER_AGENT
+                // User-Agent 选择优先级：
+                //   overrideUserAgent（完全自定义）> useDesktopMode 决定 PC/移动 UA
+                userAgentString = site.overrideUserAgent
+                    ?: if (site.useDesktopMode) AiSiteList.UA_DESKTOP else AiSiteList.UA_MOBILE
 
-                // 让网站以桌面模式渲染
-                useWideViewPort = true
-                loadWithOverviewMode = true
+                // 桌面宽视口：PC UA 站点使用网站设计宽度渲染（天工/清言再靠 jsInjection 修复缩放）
+                useWideViewPort = site.useDesktopMode
+                loadWithOverviewMode = site.useDesktopMode
 
-                // 支持缩放
+                // 支持缩放（桌面版页面较宽，需要捏合缩放）
                 setSupportZoom(true)
                 builtInZoomControls = true
                 displayZoomControls = false
 
-                // 缓存策略：正常加载使用缓存，清除后重新从网络获取
+                // 缓存：正常使用缓存；清缓存后会重新从网络获取
                 cacheMode = WebSettings.LOAD_DEFAULT
 
-                // DOM Storage（大多数 AI 工具用 LocalStorage 存 Session）
+                // DOM Storage（LocalStorage / SessionStorage）
+                // 大多数 AI 工具用它存匿名 Session Token 和使用计数
                 domStorageEnabled = true
 
-                // 数据库存储（部分工具使用 IndexedDB）
+                // IndexedDB（智谱清言等工具的状态存储）
                 @Suppress("DEPRECATION")
                 databaseEnabled = true
 
-                // 允许混合内容（部分资源可能走 http）
+                // 混合内容：允许 HTTPS 页面加载 HTTP 子资源
+                // 默认 MIXED_CONTENT_NEVER_ALLOW 会导致部分静态资源 404，造成白屏
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
 
-                // 媒体自动播放（静音模式）
+                // 媒体：不要求用户手势才能播放（部分工具有音频反馈）
                 mediaPlaybackRequiresUserGesture = false
             }
 
             webViewClient = AiWebViewClient()
             webChromeClient = AiWebChromeClient()
+
+            // 启用 Cookie（部分 WebView 默认关闭第三方 Cookie）
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         }
     }
 
@@ -131,9 +132,6 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
 
     // ── 清除缓存逻辑 ──────────────────────────────────────────────────────────
 
-    /**
-     * 弹出确认对话框，防止误操作
-     */
     private fun showClearCacheConfirmDialog() {
         AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.clear_cache))
@@ -144,28 +142,29 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
     }
 
     /**
-     * 清除所有客户端存储，重置 Session：
-     * 1. WebView 缓存（磁盘缓存）
-     * 2. Cookie（服务器 Session Token）
-     * 3. DOM Storage / LocalStorage（匿名 UID、计数器）
-     * 4. 历史记录（防止 back 回到旧页面）
+     * 清除所有客户端存储，重置匿名 Session：
+     * 1. HTTP 磁盘缓存
+     * 2. Cookie（服务端 Session Token 存在这里，清除后服务端视为新访客）
+     * 3. WebView 内存数据（历史、表单）
+     * 4. JS 清除 localStorage / sessionStorage / IndexedDB
+     * 5. 重新加载首页
      */
     private fun clearCacheAndReload() {
         binding.webView.apply {
-            // 1. 清除 HTTP 缓存
+            // 1. HTTP 缓存
             clearCache(true)
 
-            // 2. 清除 Cookie（最关键：服务端 Session Token 存在这里）
+            // 2. Cookie
             CookieManager.getInstance().apply {
                 removeAllCookies(null)
                 flush()
             }
 
-            // 3. 清除 WebView 内存数据（包含 LocalStorage、SessionStorage）
+            // 3. 历史 & 表单
             clearHistory()
             clearFormData()
 
-            // 4. 清除 LocalStorage / IndexedDB（通过加载 javascript: 清除）
+            // 4. localStorage / sessionStorage / IndexedDB
             evaluateJavascript(
                 """
                 (function() {
@@ -182,26 +181,36 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
             )
         }
 
-        // 5. 清除 WebView 应用数据目录中的数据库文件
-        try {
-            val webviewDir = requireContext().getDir("webview", android.content.Context.MODE_PRIVATE)
-            webviewDir.listFiles()?.forEach { it.delete() }
-        } catch (e: Exception) {
-            // 忽略，不影响主流程
-        }
-
-        // 重新加载主页
+        // 5. 重新加载
         showErrorLayout(false)
         loadUrl(site.url)
-
         toast(site.clearCacheNote)
     }
 
-    // ── 辅助方法 ─────────────────────────────────────────────────────────────
+    // ── 辅助 ──────────────────────────────────────────────────────────────────
 
+    /**
+     * 加载 URL，同时附加站点专属请求头（如通义的 Referer / Origin）。
+     */
     private fun loadUrl(url: String) {
         hasLoadError = false
-        binding.webView.loadUrl(url)
+        if (site.extraHeaders.isNotEmpty()) {
+            binding.webView.loadUrl(url, site.extraHeaders)
+        } else {
+            binding.webView.loadUrl(url)
+        }
+    }
+
+    /**
+     * 在页面加载完成后注入站点专属 JS。
+     *
+     * 用途举例：
+     * - 智谱清言：修复 viewport meta，避免 WebView 以 980px 宽渲染导致内容缩小不可见
+     * - 天工 AI：调整 viewport 缩放比例，使桌面版布局适配手机屏宽
+     */
+    private fun injectJsIfNeeded() {
+        val js = site.jsInjection ?: return
+        binding.webView.evaluateJavascript(js.trimIndent(), null)
     }
 
     private fun showProgress(show: Boolean) {
@@ -227,6 +236,9 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
             showProgress(false)
             if (hasLoadError) {
                 showErrorLayout(true)
+            } else {
+                // 页面正常加载完成后注入站点专属 JS（修复 viewport / 渲染问题）
+                injectJsIfNeeded()
             }
         }
 
@@ -235,7 +247,7 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
             request: WebResourceRequest,
             error: WebResourceError,
         ) {
-            // 只处理主框架加载失败（忽略资源加载错误）
+            // 只处理主框架错误（忽略图片/JS 等资源加载失败）
             if (request.isForMainFrame) {
                 hasLoadError = true
                 showProgress(false)
@@ -262,11 +274,10 @@ class WebFragment : BaseFragment<FragmentWebBinding>(FragmentWebBinding::inflate
         }
     }
 
-    // ── 返回键处理（由 MainActivity 调用） ───────────────────────────────────
+    // ── 返回键（由 MainActivity 调用） ───────────────────────────────────────
 
     /**
-     * 如果 WebView 有历史可以返回，执行返回并返回 true；
-     * 否则返回 false（交给 Activity 处理）。
+     * WebView 有历史则后退并返回 true，否则返回 false 交由 Activity 处理。
      */
     fun onBackPressed(): Boolean {
         return if (binding.webView.canGoBack()) {
