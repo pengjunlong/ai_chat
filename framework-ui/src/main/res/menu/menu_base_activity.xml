@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    BaseActivity 通用溢出菜单。
+    showAsAction="never" 保持全部在溢出菜单（⋮）中，不占用 ActionBar 空间。
+    子类可通过 override onCreateOptionsMenu 追加自己的菜单项。
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_check_update"
+        android:title="检查更新"
+        app:showAsAction="never" />
+
+</menu>
+
