@@ -1,12 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 主色：深色背景，AI 工具常见风格 -->
+    <color name="primary">#FF1A1A2E</color>
+    <color name="primary_variant">#FF16213E</color>
+    <color name="on_primary">#FFFFFFFF</color>
+
+    <!-- 强调色：紫蓝渐变系 -->
+    <color name="secondary">#FF7C4DFF</color>
+    <color name="secondary_variant">#FF5E35B1</color>
+    <color name="on_secondary">#FFFFFFFF</color>
+
+    <!-- 底部导航栏 -->
+    <color name="bottom_nav_background">#FF1A1A2E</color>
+    <color name="bottom_nav_selected">#FF7C4DFF</color>
+    <color name="bottom_nav_unselected">#80FFFFFF</color>
+
+    <!-- 通用 -->
+    <color name="surface">#FF0F3460</color>
+    <color name="background">#FF1A1A2E</color>
+    <color name="error">#FFCF6679</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+
+    <!-- 状态栏 -->
+    <color name="status_bar">#FF16213E</color>
+
+    <!-- 兼容旧引用 -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="ic_launcher_background">#FF6200EE</color>
+    <color name="ic_launcher_background">#FF1A1A2E</color>
 </resources>
 

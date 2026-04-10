@@ -1,16 +1,47 @@
-# Android Framework Sample
+# AI Chat
 
-一个基于 **Kotlin + Coroutines + ViewBinding** 的 Android 多模块框架项目，开箱即用，方便后续各业务项目快速复用。
+一个基于 **Kotlin + WebView** 的 Android 应用，将多个**无需登录**的网页版 AI Chat 工具整合进一个 APK，底部导航快速切换，PC User-Agent 绕过移动端限制，内置清除缓存功能帮助重置 Session 使用次数。
 
 ## 目录
 
+- [功能特性](#功能特性)
+- [收录工具](#收录工具)
 - [技术栈](#技术栈)
 - [项目结构](#项目结构)
-- [设计思路](#设计思路)
-- [模块说明](#模块说明)
-- [接入新项目](#接入新项目)
+- [框架模块说明](#框架模块说明)
 - [开发指南](#开发指南)
 - [构建与发布](#构建与发布)
+
+---
+
+## 功能特性
+
+| 功能 | 说明 |
+|------|------|
+| 🗂️ **底部导航** | 5 个 AI 工具一键切换，Fragment hide/show 保活 WebView，切换时不重载页面 |
+| 🖥️ **PC 模式** | 统一注入 `Chrome/124 Windows NT 10.0` User-Agent，绕过各平台移动端跳转限制 |
+| 🗑️ **清除缓存** | 右下角 FAB 一键清除 Cookie + LocalStorage + IndexedDB + HTTP 缓存，重置匿名 Session |
+| ↩️ **返回键** | 优先 WebView 内页后退，无历史时退出 App |
+| ❌ **错误重试** | 网络异常时显示错误页，一键重新加载 |
+| 📶 **加载进度** | 顶部细线进度条实时显示页面加载进度 |
+| 🔄 **检查更新** | ActionBar 溢出菜单内置检查更新，自动读取 GitHub Release |
+
+---
+
+## 收录工具
+
+只收录**无需注册/登录**即可直接对话、且次数限制基于客户端存储（可通过清缓存重置）的工具：
+
+| 工具 | URL | 清缓存效果 | 说明 |
+|------|-----|----------|------|
+| **通义千问** | tongyi.aliyun.com | ✅ 最佳 | 阿里系宽松，清除后重新分配免费额度 |
+| **天工 AI** | tiangong.cn | ✅ 最佳 | 以客户端 LocalStorage 计数，清除即重置 |
+| **Kimi** | kimi.moonshot.cn | ⚠️ 有效 | 清 Cookie 可重置 Session，注意控制频率避免 IP 限速 |
+| **豆包** | doubao.com | ⚠️ 有效 | 配合 PC UA 规避字节系设备指纹识别 |
+| **智谱清言** | chatglm.cn | ⚠️ 有效 | 清 Cookie 有效，避免短时间内频繁重置 |
+
+> **为什么不收录 ChatGPT / Claude / Gemini / DeepSeek？**
+> 这些工具均强制要求账号登录，无游客模式，清缓存无意义。
 
 ---
 
@@ -20,11 +51,11 @@
 |------|----|------|
 | 语言 | Kotlin | 2.1.0 |
 | 异步 | Kotlin Coroutines | 1.9.0 |
-| 崩溃上报 | ACRA | 5.11.4 |
+| UI | AndroidX + Material Components | — |
+| 崩溃上报 | ACRA | 5.13.1 |
 | 日志 | Timber | 5.0.1 |
-| 网络 | OkHttp + Retrofit + Gson | 4.12.0 / 2.11.0 |
+| 网络（检查更新） | OkHttp + Retrofit + Gson | 4.12.0 / 2.11.0 |
 | 存储 | MMKV | 2.2.2 |
-| UI | AndroidX + Material | — |
 | 构建 | AGP + Version Catalog | 8.7.3 |
 
 ---
@@ -32,461 +63,145 @@
 ## 项目结构
 
 ```
-android_sample/
+ai_chat/
 ├── gradle/
-│   └── libs.versions.toml        # 统一版本目录（Version Catalog）
-├── settings.gradle.kts           # 模块注册
-├── build.gradle.kts              # 根构建（plugin 声明）
-├── gradle.properties             # Gradle 全局配置
+│   └── libs.versions.toml          # 统一版本目录（Version Catalog）
+├── settings.gradle.kts             # 模块注册
+├── build.gradle.kts                # 根构建
 │
-├── framework-core/               # 基础核心库（其他所有模块的基石）
-│   └── src/main/java/.../core/
-│       ├── AppContext.kt         # 全局 Application/Context 持有
-│       ├── BaseApplication.kt    # Application 基类
-│       └── initializer/
-│           ├── IInitializer.kt         # 初始化器接口
-│           └── FrameworkInitializer.kt # 统一按优先级调度初始化
-│       └── utils/
-│           ├── AppUtils.kt       # 应用版本/包名/Debug 判断
-│           ├── ProcessUtils.kt   # 进程工具
-│           └── ThreadUtils.kt    # 主线程/IO 线程调度
+├── app/                            # 主应用模块
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/com/pengjunlong/app/
+│       │   ├── SampleApplication.kt          # Application，框架初始化
+│       │   ├── data/
+│       │   │   └── model/
+│       │   │       └── AiSite.kt             # AI 网站数据模型 + AiSiteList
+│       │   └── ui/
+│       │       ├── main/
+│       │       │   └── MainActivity.kt       # 底部导航 + Fragment 切换
+│       │       └── web/
+│       │           └── WebFragment.kt        # WebView + PC UA + 清缓存
+│       └── res/
+│           ├── layout/
+│           │   ├── activity_main.xml         # CoordinatorLayout + BottomNavigationView
+│           │   └── fragment_web.xml          # WebView + 进度条 + 错误页 + FAB
+│           ├── menu/
+│           │   └── bottom_nav_menu.xml       # 底部导航菜单（5 个 AI 工具）
+│           ├── color/
+│           │   └── bottom_nav_item_color.xml # 导航栏图标选中/未选中颜色
+│           ├── drawable/
+│           │   ├── ic_nav_qianwen.xml        # 通义千问图标
+│           │   ├── ic_nav_tiangong.xml       # 天工 AI 图标
+│           │   ├── ic_nav_kimi.xml           # Kimi 图标
+│           │   ├── ic_nav_doubao.xml         # 豆包图标
+│           │   ├── ic_nav_chatglm.xml        # 智谱清言图标
+│           │   └── ic_clear_cache.xml        # 清除缓存 FAB 图标
+│           └── values/
+│               ├── strings.xml
+│               ├── colors.xml                # 深色主题配色
+│               └── themes.xml               # NoActionBar 深色主题
 │
-├── framework-crash/              # 异常上报模块（ACRA 封装）
-│   └── src/main/java/.../crash/
-│       ├── CrashConfig.kt        # 崩溃配置（Builder 模式）
-│       ├── CrashListener.kt      # 崩溃回调接口
-│       └── CrashReporter.kt      # ACRA 初始化 + 手动上报入口
-│
-├── framework-logger/             # 日志模块（Timber 封装）
-│   └── src/main/java/.../logger/
-│       ├── L.kt                  # 日志快捷入口（L.d / L.e / L.i ...）
-│       ├── LoggerInitializer.kt  # Debug=DebugTree / Release=ReleaseTree
-│       └── ReleaseTree.kt        # Release 日志树（过滤低级别，上报 ERROR）
-│
-├── framework-network/            # 网络模块（OkHttp + Retrofit）
-│   └── src/main/java/.../network/
-│       ├── NetworkConfig.kt      # 网络配置（baseUrl/超时/拦截器）
-│       ├── NetworkManager.kt     # OkHttp + Retrofit 构建与管理
-│       ├── ApiResult.kt          # 统一请求结果（Success/Error/Loading）
-│       └── NetworkExt.kt         # safeApiCall{} 协程安全调用扩展
-│
-├── framework-storage/            # 存储模块（MMKV）
-│   └── src/main/java/.../storage/
-│       ├── StorageInitializer.kt # MMKV 全局初始化
-│       └── KVStore.kt            # 类型安全的 KV 读写门面
-│
-├── framework-ui/                 # 基础 UI 模块
-│   └── src/main/java/.../ui/
-│       ├── base/
-│       │   ├── BaseViewModel.kt  # 统一 loading/error/request 封装
-│       │   ├── BaseActivity.kt   # ViewBinding + 生命周期安全协程
-│       │   └── BaseFragment.kt   # ViewBinding（onDestroyView 自动释放）
-│       └── ext/
-│           └── ViewExt.kt        # View 扩展（visible/gone/防抖点击/toast）
-│
-└── app/                          # 示例应用（演示框架各模块用法）
-    └── src/main/java/.../
-        ├── SampleApplication.kt          # 演示框架完整接入
-        ├── data/
-        │   ├── model/Post.kt             # 数据模型
-        │   ├── remote/PostApiService.kt  # Retrofit API 接口
-        │   └── repository/PostRepository.kt
-        └── ui/main/
-            ├── MainViewModel.kt          # 继承 BaseViewModel
-            └── MainActivity.kt           # 继承 BaseActivity
+├── framework-core/                 # 基础核心库
+├── framework-crash/                # 异常上报（ACRA）
+├── framework-logger/               # 日志（Timber）
+├── framework-network/              # 网络 + 检查更新
+├── framework-storage/              # 存储（MMKV）
+└── framework-ui/                   # UI 基类（BaseActivity / BaseFragment）
 ```
 
 ---
 
-## 设计思路
+## 框架模块说明
 
-### 1. 模块化分层
-
-框架按职责拆分为独立 AAR 库模块，依赖关系单向流动：
-
-```
-app
- └── framework-ui
- └── framework-network
- └── framework-storage
- └── framework-crash
- └── framework-logger
-      └── framework-core  ← 所有模块的基础依赖
-```
-
-业务项目可按需引入，不需要的模块完全不依赖。
-
-### 2. 统一初始化机制
-
-所有模块实现 `IInitializer` 接口，通过 `priority()` 控制执行顺序：
-
-```kotlin
-// 优先级从小到大执行
-CrashReporter  → priority = Int.MIN_VALUE  // 最先：保证崩溃上报第一个就绪
-LoggerInitializer → priority = -100
-StorageInitializer → priority = -80
-NetworkInitializer → priority = -50
-// 业务初始化（onAppCreate）最后执行
-```
-
-`FrameworkInitializer` 统一排序调度，`BaseApplication` 只需一次调用：
-
-```kotlin
-override fun onCreate() {
-    AppContext.init(this)
-    registerInitializers()      // 注册各模块
-    FrameworkInitializer.init(this) // 按优先级执行
-    onAppCreate()               // 业务层初始化
-}
-```
-
-### 3. 异常上报（ACRA）
-
-- **自动捕获**：ACRA 接管 `UncaughtExceptionHandler`，崩溃自动收集
-- **HTTP 上报**：可配置 POST 到自建服务器（JSON 格式）
-- **Debug Toast**：调试时崩溃弹 Toast 提示，不污染生产数据
-- **自定义回调**：`CrashListener` 可用于写本地日志文件
-- **手动上报**：`CrashReporter.report(e)` 上报 try-catch 捕获的非致命异常
-- **自定义字段**：`CrashReporter.putCustomData("user_id", uid)` 附加上下文信息
-
-### 4. 网络层（ApiResult）
-
-用 `sealed class ApiResult<T>` 替代 try-catch，让错误处理回到类型系统：
-
-```
-Repository → safeApiCall{} → ApiResult<T>
-                                 ├── Success(data)
-                                 ├── Error(message, code, cause)
-                                 └── Loading
-ViewModel → request{} → 自动处理 Loading 状态 + 错误转发到 errorEvent
-```
-
-### 5. UI 基类
-
-`BaseViewModel.request{}` 自动管理 loading 状态，无需在每个 ViewModel 重复写：
-
-```kotlin
-fun loadData() = request(
-    block = { repo.fetchData() },   // 只关心业务逻辑
-    onSuccess = { _data.value = it },
-    // loading 自动开关，error 自动发送到 errorEvent
-)
-```
-
-`BaseActivity/BaseFragment` 使用 `launchWhenStarted{}` 安全收集 Flow，页面不可见时自动暂停，避免内存泄漏和无效更新。
-
----
-
-## 模块说明
+本项目复用了一套多模块框架基础库，各模块职责如下：
 
 ### framework-core
 
-所有其他模块的基础依赖，对外通过 `api` 传递 `androidx.core-ktx`、`appcompat`、`Timber`、Coroutines。
+所有模块的基础依赖，提供全局 `Context`、Application 基类、统一初始化调度器。
 
 | 类 | 说明 |
 |----|------|
-| `AppContext` | 全局 `Context` 持有，`AppContext.context` 随时取用 |
-| `BaseApplication` | Application 基类，子类重写 `registerInitializers()` 和 `onAppCreate()` |
-| `FrameworkInitializer` | 初始化调度器，`register()` + `init()` |
-| `AppUtils` | 版本名、版本号、包名、是否 Debug |
-| `ThreadUtils` | 主线程/IO 线程/CPU 线程池调度 |
-
-### framework-crash
-
-| 类 | 说明 |
-|----|------|
-| `CrashReporter.initializer(config)` | 创建初始化器，注册到 `FrameworkInitializer` |
-| `CrashReporter.report(e)` | 手动上报可捕获异常 |
-| `CrashReporter.reportSilent(e)` | 静默上报（不触发通知） |
-| `CrashReporter.putCustomData(k, v)` | 附加自定义字段到崩溃报告 |
-| `CrashConfig.Builder` | 配置 `reportUrl`、`enableInDebug`、`toastEnabled`、`crashListener` |
-
-### framework-logger
-
-| 类 | 说明 |
-|----|------|
-| `L.d/i/w/e/v(msg)` | 日志快捷方法 |
-| `L.tag("TAG").d(msg)` | 自定义 Tag |
-| `L.e(throwable)` | 上报异常 |
-| `ReleaseTree(errorReporter)` | Release 日志树，可注入崩溃上报回调 |
-
-### framework-network
-
-| 类 | 说明 |
-|----|------|
-| `NetworkManager.initializer(config)` | 创建初始化器 |
-| `NetworkManager.createService(Class)` | 创建 Retrofit Service |
-| `safeApiCall { }` | 协程安全调用，异常转为 `ApiResult.Error` |
-| `ApiResult.onSuccess { }.onError { }` | 链式结果处理 |
-
-### framework-storage
-
-| 类 | 说明 |
-|----|------|
-| `KVStore.putString/getString(key, default)` | 字符串读写 |
-| `KVStore.putBoolean/getBoolean(key, default)` | 布尔读写 |
-| `KVStore.of("scope_name")` | 获取独立隔离的 MMKV 实例 |
-| `KVStore.remove(key)` / `KVStore.clearAll()` | 删除 |
+| `AppContext` | 全局 `Context` 持有 |
+| `BaseApplication` | Application 基类，子类重写 `registerInitializers()` |
+| `FrameworkInitializer` | 按优先级调度各模块初始化 |
 
 ### framework-ui
 
 | 类 | 说明 |
 |----|------|
-| `BaseActivity<VB>(VB::inflate)` | ViewBinding 基类 Activity |
-| `BaseFragment<VB>(VB::inflate)` | ViewBinding 基类 Fragment |
-| `BaseViewModel.request{}` | 封装网络请求，自动 loading/error |
-| `launchWhenStarted {}` | 生命周期安全的 Flow 收集 |
+| `BaseActivity<VB>` | ViewBinding 基类，内置检查更新菜单 |
+| `BaseFragment<VB>` | ViewBinding 基类，`onDestroyView` 自动释放 binding |
+| `BaseViewModel` | 封装 `request{}` 自动处理 loading / error |
 | `View.setOnSingleClickListener {}` | 防抖点击（默认 500ms） |
-| `View.visible()` / `View.gone()` | 可见性扩展 |
 
----
+### framework-network
 
-## 接入新项目
+负责检查更新功能（读取 GitHub Release API）。
 
-### 方式一：直接复制模块（推荐）
+| 类 | 说明 |
+|----|------|
+| `UpdateChecker` | 检查 GitHub Release 是否有新版本 |
+| `safeApiCall {}` | 协程安全调用，异常转为 `ApiResult.Error` |
 
-1. **复制所需模块**到新项目根目录（至少复制 `framework-core`，其他按需）
+### framework-storage / framework-logger / framework-crash
 
-2. **在 `settings.gradle.kts` 中注册模块：**
-
-```kotlin
-include(":framework-core")
-include(":framework-crash")
-include(":framework-logger")
-include(":framework-network")
-include(":framework-storage")
-include(":framework-ui")
-```
-
-3. **修改各模块 `build.gradle.kts` 中的 `namespace`**（统一替换包名前缀）：
-
-```kotlin
-// 将 com.example.framework 改为你的包名，如：
-namespace = "com.yourcompany.framework.core"
-```
-
-4. **在 `app/build.gradle.kts` 中引入模块：**
-
-```kotlin
-dependencies {
-    implementation(project(":framework-core"))
-    implementation(project(":framework-crash"))
-    implementation(project(":framework-logger"))
-    implementation(project(":framework-network"))
-    implementation(project(":framework-storage"))
-    implementation(project(":framework-ui"))
-}
-```
-
-5. **创建 Application 类继承 `BaseApplication`：**
-
-```kotlin
-class MyApp : BaseApplication() {
-
-    override fun registerInitializers() {
-        // 崩溃上报（最高优先级，建议必接）
-        FrameworkInitializer.register(
-            CrashReporter.initializer(
-                CrashConfig.Builder()
-                    .reportUrl("https://your-server.com/acra/report") // 上报地址
-                    .enableInDebug(false)
-                    .toastEnabled(true)
-                    .crashListener { _, throwable ->
-                        // 可选：写本地日志
-                    }
-                    .build()
-            )
-        )
-        // 日志
-        FrameworkInitializer.register(LoggerInitializer())
-        // 存储
-        FrameworkInitializer.register(StorageInitializer())
-        // 网络
-        FrameworkInitializer.register(
-            NetworkManager.initializer(
-                NetworkConfig(
-                    baseUrl = "https://api.yourserver.com/",
-                    enableLogging = BuildConfig.DEBUG,
-                    interceptors = listOf(AuthInterceptor()),  // 注入 Token 拦截器
-                )
-            )
-        )
-    }
-
-    override fun onAppCreate() {
-        // 框架全部就绪，在此做业务初始化
-        // 如：初始化推送 SDK、路由框架等
-    }
-}
-```
-
-6. **在 `AndroidManifest.xml` 中声明 Application：**
-
-```xml
-<application
-    android:name=".MyApp"
-    ... >
-```
-
-### 方式二：发布为 Maven 本地/远程依赖（适合多项目共用）
-
-在各框架模块的 `build.gradle.kts` 中添加 `maven-publish` 插件：
-
-```kotlin
-plugins {
-    id("maven-publish")
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("release") {
-            groupId = "com.yourcompany.framework"
-            artifactId = "core"           // 各模块不同
-            version = "1.0.0"
-            afterEvaluate { from(components["release"]) }
-        }
-    }
-    repositories {
-        maven { url = uri("../local-maven-repo") }  // 本地 Maven 仓库
-    }
-}
-```
-
-执行 `./gradlew publishReleasePublicationToMavenLocal` 发布到本地，然后在业务项目中：
-
-```kotlin
-// settings.gradle.kts
-dependencyResolutionManagement {
-    repositories {
-        maven { url = uri("/path/to/local-maven-repo") }
-    }
-}
-
-// app/build.gradle.kts
-implementation("com.yourcompany.framework:core:1.0.0")
-implementation("com.yourcompany.framework:crash:1.0.0")
-```
+分别封装 MMKV、Timber 日志、ACRA 崩溃上报，开箱即用。
 
 ---
 
 ## 开发指南
 
-### 添加新的业务 Activity
+### 添加新的 AI 工具
+
+1. 在 `AiSite.kt` 的 `AiSiteList.sites` 中追加一条记录：
 
 ```kotlin
-class UserProfileActivity : BaseActivity<ActivityUserProfileBinding>(
-    ActivityUserProfileBinding::inflate
-) {
-    private val viewModel: UserProfileViewModel by viewModels()
-
-    override fun initViews() {
-        binding.btnEdit.setOnSingleClickListener {
-            // 防抖点击，500ms 内只响应一次
-        }
-    }
-
-    override fun initObservers() {
-        launchWhenStarted {
-            viewModel.user.collect { user ->
-                binding.tvName.text = user.name
-            }
-        }
-        launchWhenStarted {
-            viewModel.isLoading.collect { showLoading(it) }
-        }
-        launchWhenStarted {
-            viewModel.errorEvent.collect { showError(it) }
-        }
-    }
-
-    override fun showLoading(show: Boolean) {
-        binding.progressBar.isVisible = show
-    }
-}
-```
-
-### 添加新的 ViewModel
-
-```kotlin
-class UserProfileViewModel : BaseViewModel() {
-
-    private val repo = UserRepository()
-
-    private val _user = MutableStateFlow<User?>(null)
-    val user: StateFlow<User?> = _user.asStateFlow()
-
-    fun loadUser(id: String) = request(
-        block = { repo.fetchUser(id) },
-        onSuccess = { _user.value = it },
-        onError = { error ->
-            // 可选：自定义错误处理，否则 error 自动发送到 errorEvent
-            if (error.code == 401) navigateToLogin()
-        }
-    )
-}
-```
-
-### 添加网络请求
-
-```kotlin
-// 1. 定义 API 接口
-interface UserApiService {
-    @GET("users/{id}")
-    suspend fun getUser(@Path("id") id: String): UserResponse
-
-    @POST("users")
-    suspend fun createUser(@Body body: CreateUserRequest): UserResponse
-}
-
-// 2. 在 Repository 中使用 safeApiCall
-class UserRepository {
-    private val api = NetworkManager.createService(UserApiService::class.java)
-
-    suspend fun fetchUser(id: String): ApiResult<User> = safeApiCall {
-        api.getUser(id).toUser()
-    }
-}
-```
-
-### 自定义 Token 拦截器
-
-```kotlin
-class AuthInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val token = KVStore.getString("access_token", "")
-        val request = chain.request().newBuilder()
-            .addHeader("Authorization", "Bearer $token")
-            .build()
-        return chain.proceed(request)
-    }
-}
-
-// 注册到 NetworkConfig
-NetworkConfig(
-    baseUrl = "...",
-    interceptors = listOf(AuthInterceptor()),
+AiSite(
+    id = R.id.nav_new_tool,
+    label = "新工具",
+    url = "https://example.com",
+    iconRes = R.drawable.ic_nav_new_tool,
+    clearCacheNote = "Session 已重置",
 )
 ```
 
-### KV 存储最佳实践
+2. 在 `res/menu/bottom_nav_menu.xml` 中添加对应菜单项：
 
-建议用 `object` 封装业务相关的 Key 常量，避免 Key 字符串散落各处：
-
-```kotlin
-object UserPrefs {
-    private val store = KVStore.of("user")   // 独立 scope，与其他数据隔离
-
-    var userId: String
-        get() = store.decodeString("user_id", "") ?: ""
-        set(value) { store.encode("user_id", value) }
-
-    var isLoggedIn: Boolean
-        get() = store.decodeBool("is_logged_in", false)
-        set(value) { store.encode("is_logged_in", value) }
-
-    fun clear() = store.clearAll()
-}
+```xml
+<item
+    android:id="@+id/nav_new_tool"
+    android:icon="@drawable/ic_nav_new_tool"
+    android:title="新工具" />
 ```
+
+3. 创建 `res/drawable/ic_nav_new_tool.xml`（Vector Drawable，24×24dp）
+
+> BottomNavigationView 最多显示 5 个 Tab，超过 5 个时建议换用侧边抽屉或滚动式导航。
+
+### 清缓存机制说明
+
+`WebFragment.clearCacheAndReload()` 执行以下五步：
+
+```
+1. webView.clearCache(true)              → 清除磁盘 HTTP 缓存
+2. CookieManager.removeAllCookies()      → 清除所有 Cookie（含 Session Token）
+3. webView.clearHistory()                → 清除浏览历史
+4. evaluateJavascript(...)               → JS 清除 localStorage / sessionStorage / IndexedDB
+5. 重新加载首页 URL
+```
+
+### PC User-Agent
+
+所有 WebView 统一使用以下 UA，模拟 Windows Chrome 桌面浏览器：
+
+```
+Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+AppleWebKit/537.36 (KHTML, like Gecko)
+Chrome/124.0.0.0 Safari/537.36
+```
+
+如需针对特定网站定制 UA，可在 `AiSite` 中扩展 `userAgent` 字段，在 `WebFragment.setupWebView()` 中按需读取。
 
 ---
 
@@ -495,19 +210,16 @@ object UserPrefs {
 ### 本地构建
 
 ```bash
-# 编译 Debug 包
+# 编译 Debug 包（输出 AI Chat-debug.apk）
 ./gradlew assembleDebug
 
 # 编译 Release 包（需配置签名）
 ./gradlew assembleRelease
 
-# 运行单元测试
-./gradlew test
-
-# 运行所有检查（test + lint）
+# 运行所有检查
 ./gradlew check
 
-# 清理构建缓存
+# 清理
 ./gradlew clean
 ```
 
@@ -522,7 +234,7 @@ keyAlias=your_key_alias
 keyPassword=your_key_password
 ```
 
-在 `app/build.gradle.kts` 中读取签名配置：
+在 `app/build.gradle.kts` 中读取：
 
 ```kotlin
 val keystoreProps = Properties().apply {
@@ -547,16 +259,14 @@ android {
 }
 ```
 
-### GitHub Actions
+### GitHub Actions 自动发布
 
 项目包含两个自动化工作流：
 
 | 工作流 | 触发方式 | 功能 |
 |--------|---------|------|
-| `ci.yml` | 推送 `v*` Tag，或向 `main`/`develop` 发起 PR | 编译检查 + 单元测试 + Lint |
+| `ci.yml` | 推送 `v*` Tag 或向 `main`/`develop` 发起 PR | 编译检查 + 单元测试 + Lint |
 | `release.yml` | 推送 `v*` Tag（如 `v1.0.0`） | 构建签名 APK + 创建 GitHub Release |
-
-**配置 Release 签名（Repository Secrets）：**
 
 在 GitHub → Settings → Secrets → Actions 中添加：
 
@@ -567,7 +277,7 @@ android {
 | `KEY_ALIAS` | Key 别名 |
 | `KEY_PASSWORD` | Key 密码 |
 
-生成 Base64：
 ```bash
-base64 -i release.jks | pbcopy   # macOS，结果已复制到剪贴板
+# 生成 Base64（macOS，结果自动复制到剪贴板）
+base64 -i release.jks | pbcopy
 

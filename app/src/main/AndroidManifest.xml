@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 网络访问（WebView 加载网页必须） -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- ACRA 通知上报需要（Android 13+ 运行时权限） -->
+    <!-- ACRA 崩溃通知（Android 13+ 运行时权限） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -12,11 +13,26 @@
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_foreground"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AndroidSample">
+        android:theme="@style/Theme.AndroidSample"
+        android:usesCleartextTraffic="false"
+        android:hardwareAccelerated="true">
+        <!--
+            android:hardwareAccelerated="true"
+            启用硬件加速，WebView 渲染更流畅（AI Chat 页面 JS 计算量大）
+
+            android:usesCleartextTraffic="false"
+            禁用明文 HTTP，所有 AI Chat 网站均使用 HTTPS
+        -->
 
         <activity
             android:name=".ui.main.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize">
+            <!--
+                android:configChanges 避免横竖屏切换时重建 Activity（WebView 会重载页面）
+                android:windowSoftInputMode="adjustResize" 键盘弹出时 WebView 内容上移而非覆盖
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

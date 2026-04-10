@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <!-- WebView：占满整个 Fragment -->
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 加载进度条（顶部细线） -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progressBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="false"
+        android:visibility="gone"
+        app:trackCornerRadius="0dp"
+        app:indicatorColor="@color/secondary"
+        app:trackColor="@android:color/transparent" />
+
+    <!-- 错误提示层（网络异常时显示） -->
+    <LinearLayout
+        android:id="@+id/errorLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@color/background"
+        android:visibility="gone"
+        android:padding="32dp">
+
+        <TextView
+            android:id="@+id/tvError"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/load_error"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:gravity="center"
+            android:alpha="0.7" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnReload"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/reload"
+            app:backgroundTint="@color/secondary" />
+
+    </LinearLayout>
+
+    <!-- 清除缓存 FAB（悬浮按钮，右下角） -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabClearCache"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/clear_cache"
+        android:src="@drawable/ic_clear_cache"
+        app:backgroundTint="@color/secondary"
+        app:tint="@color/white"
+        app:fabSize="mini" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+

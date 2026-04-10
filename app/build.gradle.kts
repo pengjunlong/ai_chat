@@ -23,11 +23,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // ── 可通过 BuildConfig 访问的配置常量 ──────────────────────────────
-        // API 服务地址（可按需扩展 debug/release 不同 baseUrl）
-        buildConfigField("String", "API_BASE_URL", "\"https://jsonplaceholder.typicode.com/\"")
+        // API 服务地址（本项目为 WebView 聚合，无需后端 API，占位保留）
+        buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
         // GitHub 仓库信息（检查更新用）
         buildConfigField("String", "UPDATE_REPO_OWNER", "\"pengjunlong\"")
-        buildConfigField("String", "UPDATE_REPO_NAME",  "\"android_sample\"")
+        buildConfigField("String", "UPDATE_REPO_NAME",  "\"ai_chat\"")
     }
 
     buildTypes {
@@ -86,21 +86,15 @@ dependencies {
     implementation(project(":framework-core"))
     implementation(project(":framework-crash"))
     implementation(project(":framework-logger"))
-    implementation(project(":framework-network"))
+    implementation(project(":framework-network"))   // 检查更新功能依赖
     implementation(project(":framework-storage"))
     implementation(project(":framework-ui"))
 
-    // 下拉刷新
-    implementation(libs.androidx.swiperefreshlayout)
-
-    // 图片加载
-    implementation(libs.glide)
+    // Material（底部导航栏 BottomNavigationView、FAB、进度条等）
+    implementation(libs.material)
 
     testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.mockk.android)
 }
 

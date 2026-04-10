@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通义千问：对话气泡 + 三个圆点 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 对话气泡主体 -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,2C6.477,2 2,6.477 2,12c0,1.89 0.525,3.66 1.438,5.168L2,22l4.832,-1.438C8.34,21.475 10.11,22 12,22c5.523,0 10,-4.477 10,-10S17.523,2 12,2z" />
+    <!-- 三个小圆点（用 path 画） -->
+    <path
+        android:fillColor="#FF6A00"
+        android:pathData="M8,12 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#FF6A00"
+        android:pathData="M12,12 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#FF6A00"
+        android:pathData="M16,12 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+</vector>
+

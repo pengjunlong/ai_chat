@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_qianwen"
+        android:icon="@drawable/ic_nav_qianwen"
+        android:title="@string/nav_qianwen" />
+
+    <item
+        android:id="@+id/nav_tiangong"
+        android:icon="@drawable/ic_nav_tiangong"
+        android:title="@string/nav_tiangong" />
+
+    <item
+        android:id="@+id/nav_kimi"
+        android:icon="@drawable/ic_nav_kimi"
+        android:title="@string/nav_kimi" />
+
+    <item
+        android:id="@+id/nav_doubao"
+        android:icon="@drawable/ic_nav_doubao"
+        android:title="@string/nav_doubao" />
+
+    <item
+        android:id="@+id/nav_chatglm"
+        android:icon="@drawable/ic_nav_chatglm"
+        android:title="@string/nav_chatglm" />
+
+</menu>
+

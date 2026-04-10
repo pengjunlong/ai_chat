@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">App</string>
+    <string name="app_name">AI Chat</string>
+
+    <!-- 底部导航标签（只收录无需登录的 AI Chat 工具） -->
+    <string name="nav_qianwen">通义</string>
+    <string name="nav_tiangong">天工</string>
+    <string name="nav_kimi">Kimi</string>
+    <string name="nav_doubao">豆包</string>
+    <string name="nav_chatglm">清言</string>
+
+    <!-- 清除缓存 -->
+    <string name="clear_cache">清除缓存</string>
+    <string name="clear_cache_confirm">确定要清除此页面的缓存和 Cookie 吗？\n\n这将重置当前工具的 Session，可能帮助刷新免费使用次数。</string>
+    <string name="clear_cache_success">缓存已清除，页面已刷新</string>
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
+
+    <!-- 加载提示 -->
+    <string name="loading">加载中…</string>
+    <string name="load_error">页面加载失败，请检查网络后重试</string>
+    <string name="reload">重新加载</string>
 </resources>
 
